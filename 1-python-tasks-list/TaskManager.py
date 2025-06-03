@@ -3,38 +3,56 @@ import json
 from datetime import datetime
 
 class TaskManager:
-    def __init__(self):
-        self.tasks = []
-        self.file_name = "tasks.json"
-        self.load_tasks()
+    '''
+    Manage a json file with defined tasks.
     
-    def load_tasks(self):
-        if os.path.exists(self.file_name):
+    Implement basic crud functionality in tasks created by the user.
+    Include names, description, status and creation date.
+    '''
+    
+    __tasks: list[dict]
+    __file_name: str
+
+    def __init__(self):
+        self.__tasks = []
+        self.__file_name = "tasks.json"
+        self.__load_tasks()
+    
+
+    def __load_tasks(self) -> None:
+        if os.path.exists(self.__file_name):
             try:
-                with open(self.file_name, "r") as file:
-                    self.tasks = json.load(file)
+                with open(self.__file_name, "r") as file:
+                    self.__tasks = json.load(file)
             except:
                 print("Error loading task data. Starting with empty task list.")
-                self.tasks = []
+                self.__tasks = []
     
-    def save_tasks(self):
-        with open(self.file_name, "w") as file:
-            json.dump(self.tasks, file)
+
+    def __save_tasks(self) -> None:
+        with open(self.__file_name, "w") as file:
+            json.dump(self.__tasks, file)
     
-    def add_task(self, title, description):
+    
+    def add_task(self, title: str, description: str) -> None:
+        '''Create new task with the specified attributes'''
+
         task = {
-            "id": len(self.tasks) + 1,
+            "id": len(self.__tasks) + 1,
             "title": title,
             "description": description,
             "status": "Pending",
             "created_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
-        self.tasks.append(task)
-        self.save_tasks()
+        self.__tasks.append(task)
+        self.__save_tasks()
         print(f"Task '{title}' added successfully!")
     
-    def list_tasks(self):
-        if not self.tasks:
+
+    def list_tasks(self, include_deleted: bool = False) -> None:
+        '''Print all the stored tasks, omit deleted unless specified'''
+
+        if not self.__tasks:
             print("No tasks found.")
             return
         
@@ -42,66 +60,65 @@ class TaskManager:
         print(f"{'ID':<5} {'TITLE':<20} {'STATUS':<10} {'CREATED DATE':<20} {'DESCRIPTION':<30}")
         print("-" * 80)
         
-        for task in self.tasks:
-            print(f"{task['id']:<5} {task['title'][:18]:<20} {task['status']:<10} {task['created_date']:<20} {task['description'][:28]:<30}")
+        current = []
+        deleted = []
+        for task in self.__tasks:
+            row = f"{task['id']:<5} {task['title'][:18]:<20} {task['status']:<10} {task['created_date']:<20} {task['description'][:28]:<30}"
+            
+            if task["status"] != "Deleted":
+                current.append(row)
+            
+            elif include_deleted:
+                deleted.append(row)
         
+        for i in current:
+            print(i)
+        
+        if include_deleted:
+            print("\nDeleted:")
+            print("=" * 80)
+            print("-" * 80)
+
+            for i in deleted:
+                print(i)
+
         print("=" * 80 + "\n")
     
-    def mark_complete(self, task_id):
-        for task in self.tasks:
+
+    def mark_complete(self, task_id: int) -> None:
+        '''Change the status of the specified task to \'Completed\''''
+
+        for task in self.__tasks:
             if task["id"] == task_id:
                 task["status"] = "Completed"
-                self.save_tasks()
+                self.__save_tasks()
                 print(f"Task '{task['title']}' marked as completed!")
                 return
         print(f"Task with ID {task_id} not found.")
     
-    def delete_task(self, task_id):
-        for i, task in enumerate(self.tasks):
+
+    def delete_task(self, task_id: int) -> None:
+        '''Flag the specified task for deletion, for permanent deletion use clear_flagged_tasks'''
+        
+        for task in self.__tasks:
             if task["id"] == task_id:
-                removed = self.tasks.pop(i)
-                self.save_tasks()
-                print(f"Task '{removed['title']}' deleted successfully!")
+                task["status"] = "Deleted"
+                self.__save_tasks()
+                print(f"Task '{task['title']}' has been moved to the deleted log")
                 return
         print(f"Task with ID {task_id} not found.")
 
 
-def main():
-    task_manager = TaskManager()
-    
-    while True:
-        print("\nTASK MANAGER")
-        print("1. Add Task")
-        print("2. List Tasks")
-        print("3. Mark Task as Complete")
-        print("4. Delete Task")
-        print("5. Exit")
-        
-        choice = input("Enter your choice (1-5): ")
-        
-        if choice == "1":
-            title = input("Enter task title: ")
-            description = input("Enter task description: ")
-            task_manager.add_task(title, description)
-        
-        elif choice == "2":
-            task_manager.list_tasks()
-        
-        elif choice == "3":
-            task_id = int(input("Enter task ID to mark as complete: "))
-            task_manager.mark_complete(task_id)
-        
-        elif choice == "4":
-            task_id = int(input("Enter task ID to delete: "))
-            task_manager.delete_task(task_id)
-        
-        elif choice == "5":
-            print("Exiting Task Manager. Goodbye!")
-            break
-        
-        else:
-            print("Invalid choice. Please try again.")
+    def clear_flagged_tasks(self) -> None:
+        '''Permanently remove all the tasks from the deleted log'''
 
+        cleared = 0
+        for i, task in enumerate(self.__tasks):
+            if task["status"] == "Deleted":
+                self.__tasks.pop(i)
+                cleared += 1
 
-if __name__ == "__main__":
-    main()
+                print(f"Removed {cleared} tasks!")
+                return
+            
+        self.__save_tasks()
